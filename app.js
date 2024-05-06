@@ -1,7 +1,4 @@
-const express = require('express')
 const axios = require('axios'); 
-const app = express()
-const port = 3000
 require('dotenv').config();
 
 // Créer une instance Axios personnalisée avec des en-têtes par défaut
@@ -11,10 +8,6 @@ let axiosInstance = axios.create({
       'Content-Type': 'application/json', // Type de contenu par défaut
     }
   });
-
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
 
 const tryLogin = async () => {
     try {
@@ -33,19 +26,9 @@ const tryLogin = async () => {
         return response.data.token;
     }
     catch (error) {
-        console.log(error);
+        throw error;
     }
 }
-
-app.get('/login', async (req, res) => {
-    try {
-        const token = await tryLogin();
-        res.json({ token: token });
-    }
-    catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
 
 const tryGetResidences = async (renewAuth=true) => {
     try {
@@ -60,17 +43,19 @@ const tryGetResidences = async (renewAuth=true) => {
                 return tryGetResidences(false);
             }
             catch (error) {
-                res.status(500).json({ error: error.message });
+                console.log('Erreur lors de la tentative de renouvellement du jeton : ' + error);
+                throw error;
             }
         }
         else {
+            console.log('Erreur lors de la récupération des résidences : ' + error);
             throw error;
         }
     }
 }
 
-// Route pour déclencher un appel à une API externe
-app.get('/refresh', async (req, res) => {
+
+const main = async () => {
     try {
         const response = await tryGetResidences();
         const residences = response.data;
@@ -81,7 +66,7 @@ app.get('/refresh', async (req, res) => {
 
         let retour = '';
         const promises = []
-        await residences.items.map(item => item._id).forEach(id => {
+        residences.items.map(item => item._id).forEach(id => {
             console.log('id : ' + id);
             try {
                 promises.push(
@@ -99,14 +84,11 @@ app.get('/refresh', async (req, res) => {
         } );
 
         await Promise.all(promises);
-
-        res.send(retour);
+        
+        console.log('Fin de traitement');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Erreur lors de l\'appel à l\'API externe : ' + error);
     }
-  });
+}
 
-
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
+main();
